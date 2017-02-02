@@ -1,0 +1,11 @@
+etcd-mirror for Debian
+---------------------
+
+You will be able to use the etcd-mirror binary as a service via its systemd unit.
+By default the service will not start. To enable it, you have to configure it by
+either editing the defaults file, or by writing a systemd override file. Once you've
+done that you can simply unmask it:
+
+ # systemctl unmask etcd-mirror.service
+
+ -- Giuseppe Lavagetto <joe@wikimedia.org>, Wed,  1 Feb 2017 12:13:33 +0100

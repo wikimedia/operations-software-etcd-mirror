@@ -1,0 +1,5 @@
+etcd-mirror (0.0.1-1) jessie-wikimedia; urgency=medium
+
+  * Initial release
+
+ -- Giuseppe Lavagetto <glavagetto@wikimedia.org>  Wed, 01 Feb 2017 11:54:56 +0100
