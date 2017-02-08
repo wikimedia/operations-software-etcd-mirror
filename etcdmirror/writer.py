@@ -54,14 +54,11 @@ class Etcd2Writer(object):
                 continue
             log.debug("Loading %s", obj.key)
             key = self.prefix + obj.key
-            self.client.write(key, obj.value,
-                        dir=obj.dir,
-                        ttl=obj.ttl)
-        if rootobj.modifiedIndex is None:
-            self.client.write(self.idx, rootobj.etcd_index)
-        else:
-            self.client.write(self.idx,
-                              rootobj.modifiedIndex)
+            self.client.write(
+                key, obj.value,
+                dir=obj.dir,
+                ttl=obj.ttl)
+        self.client.write(self.idx, rootobj.etcd_index)
 
     def cleanup(self):
         try:
@@ -74,7 +71,7 @@ class Etcd2Writer(object):
             for obj in self.client.read(self.prefix).leaves:
                 if obj.key is None:
                     continue
-                print obj.key
+                log.debug("Removing %s", obj.key)
                 self.client.delete(obj.key, recursive=obj.dir)
 
             return True
