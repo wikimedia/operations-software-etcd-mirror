@@ -1,3 +1,9 @@
+etcd-mirror (0.0.2-1) jessie-wikimedia; urgency=medium
+
+  * Fix bug with etcd 2.0 and modifiedIndex/etcd_index
+
+ -- Giuseppe Lavagetto <glavagetto@wikimedia.org>  Wed, 08 Feb 2017 18:38:11 +0100
+
 etcd-mirror (0.0.1-1) jessie-wikimedia; urgency=medium
 
   * Initial release
