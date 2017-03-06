@@ -9,4 +9,4 @@ class Etcd2Reader(object):
 
     def read(self, idx):
         return self.client.read(self.prefix, recursive=True, wait=True,
-                                waitIndex=idx, timeout=0)
+                                waitIndex=idx, timeout=60)

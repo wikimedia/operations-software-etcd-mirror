@@ -83,5 +83,8 @@ class Etcd2Writer(object):
 
             return True
         else:
-            self.client.delete(self.idx)
+            try:
+                self.client.delete(self.idx)
+            except etcd.EtcdKeyNotFound:
+                log.info("Could not find %s, assuming new replica", self.idx)
             return True
