@@ -47,14 +47,14 @@ def cli_args():
         "cluster to a different prefix on another cluster."
     )
     parser.add_argument('-d', '--debug', action='store_true',
-                        help="Show debug output. Definitely *very* verbose",
-                        default=False)
+                        help="Show debug output. Definitely *very* verbose")
     parser.add_argument('--reload', action='store_true',
-                        help="Wipe out the data on the receiving cluster, and load everything from the source",
-                        default=False)
+                        help="Wipe out the data on the receiving cluster, and load everything from the source")
     parser.add_argument(
         '--src-prefix', default='/',
         help="Prefix to replicate from the source. Defaults to '/'")
+    parser.add_argument('--strip', action='store_true',
+                        help="Strip the source prefix from the keys.")
     parser.add_argument(
         '--dst-prefix', default='/replica',
         help="Prefix to replicate to on the destination. Defaults to '/replica'"
@@ -66,7 +66,7 @@ def cli_args():
 
 def main():
     if '--version' in sys.argv:
-        print "0.0.1"
+        print "0.0.3"
         sys.exit(0)
 
     args = cli_args()
@@ -78,7 +78,10 @@ def main():
     source = etcd.Client(**src_conf)
     destination = etcd.Client(**dst_conf)
     read = Etcd2Reader(source, args.src_prefix)
-    write = Etcd2Writer(destination, args.dst_prefix)
+    if args.strip:
+        write = Etcd2Writer(destination, args.dst_prefix, args.src_prefix)
+    else:
+        write = Etcd2Writer(destination, args.dst_prefix)
     controller = ReplicationController(read, write)
     factory = Site(ServerRoot())
     reactor.listenTCP(8000, factory)
