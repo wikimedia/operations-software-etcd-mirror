@@ -1,3 +1,10 @@
+etcd-mirror (0.0.3-1) jessie-wikimedia; urgency=medium
+
+  * Added --strip and --port
+  * Manage bettersignals
+
+ -- Giuseppe Lavagetto <joe@wikimedia.org>  Wed, 08 Mar 2017 15:17:25 +0100
+
 etcd-mirror (0.0.2-1) jessie-wikimedia; urgency=medium
 
   * Fix bug with etcd 2.0 and modifiedIndex/etcd_index
