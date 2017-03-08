@@ -29,17 +29,6 @@ def read_config(url):
             'protocol': parsed.scheme, 'allow_reconnect': False}
 
 
-def sighandler(signum, frame):
-    if reactor.running:
-        reactor.stop()
-    sys.exit(0)
-
-
-def manage_signals():
-    for sig in [signal.SIGTERM, signal.SIGHUP, signal.SIGINT]:
-        signal.signal(sig, sighandler)
-
-
 def cli_args():
     parser = ArgumentParser(
         description="Etcd MirrorMaker.",
@@ -47,18 +36,20 @@ def cli_args():
         "cluster to a different prefix on another cluster."
     )
     parser.add_argument('-d', '--debug', action='store_true',
-                        help="Show debug output. Definitely *very* verbose",
-                        default=False)
+                        help="Show debug output. Definitely *very* verbose")
     parser.add_argument('--reload', action='store_true',
-                        help="Wipe out the data on the receiving cluster, and load everything from the source",
-                        default=False)
+                        help="Wipe out the data on the receiving cluster, and load everything from the source")
     parser.add_argument(
         '--src-prefix', default='/',
         help="Prefix to replicate from the source. Defaults to '/'")
+    parser.add_argument('--strip', action='store_true',
+                        help="Strip the source prefix from the keys.")
     parser.add_argument(
         '--dst-prefix', default='/replica',
         help="Prefix to replicate to on the destination. Defaults to '/replica'"
     )
+    parser.add_argument('--port', help="port to run the web interface on",
+                        type=int, default=8000)
     parser.add_argument('src', metavar="SRC", help="Full url of the source etcd machine.")
     parser.add_argument('dst', metavar="DST", help="Full url of the destination etcd machine.")
     return parser.parse_args()
@@ -66,7 +57,7 @@ def cli_args():
 
 def main():
     if '--version' in sys.argv:
-        print "0.0.1"
+        print "0.0.3"
         sys.exit(0)
 
     args = cli_args()
@@ -74,14 +65,16 @@ def main():
         LogObserver.level = logging.DEBUG
     src_conf = read_config(args.src)
     dst_conf = read_config(args.dst)
-    manage_signals()
     source = etcd.Client(**src_conf)
     destination = etcd.Client(**dst_conf)
     read = Etcd2Reader(source, args.src_prefix)
-    write = Etcd2Writer(destination, args.dst_prefix)
+    if args.strip:
+        write = Etcd2Writer(destination, args.dst_prefix, args.src_prefix)
+    else:
+        write = Etcd2Writer(destination, args.dst_prefix)
     controller = ReplicationController(read, write)
     factory = Site(ServerRoot())
-    reactor.listenTCP(8000, factory)
+    reactor.listenTCP(args.port, factory)
     if args.reload:
         controller.reload_data()
     try:
@@ -103,6 +96,7 @@ class ReplicationController(object):
 
     def __init__(self, read, write):
         self.has_failures = False
+        self.running = True
         self.reader = read
         self.writer = write
         self.replicated_events = Counter('etcd_replicated_events', 'Replica events treated')
@@ -113,6 +107,13 @@ class ReplicationController(object):
             url=self.writer.client.base_uri,
             prefix=self.writer.prefix,
         )
+        for sig in [signal.SIGTERM, signal.SIGHUP, signal.SIGINT]:
+            signal.signal(sig, self._sighandler)
+
+    def _sighandler(self, signum, frame):
+        self.running = False
+        reactor.callLater(0, reactor.stop)
+        sys.exit(0)
 
     @property
     def current_index(self):
@@ -157,7 +158,12 @@ class ReplicationController(object):
             return None
 
     def read_write(self, idx):
-        obj = self.reader.read(idx)
+        while self.running:
+            try:
+                obj = self.reader.read(idx)
+                break
+            except etcd.EtcdWatchTimedOut:
+                pass
         LagCalculator.setOrigin(obj.etcd_index)
         log.info('Replicating key %s at index %s', obj.key, idx)
         with self.write_latency.time():
@@ -167,6 +173,7 @@ class ReplicationController(object):
             # Replication encountered a fatal error
             log.err("Stopping the process. Last valid index: %d", idx)
             reactor.stop()
+            self.running = False
             self.has_failures = True
         return idx1
 

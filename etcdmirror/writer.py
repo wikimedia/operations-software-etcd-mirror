@@ -5,15 +5,23 @@ from etcdmirror.log import log
 
 class Etcd2Writer(object):
 
-    def __init__(self, client, prefix):
+    def __init__(self, client, prefix, src_prefix=None):
         log.info(prefix)
         self.prefix = prefix
+        if src_prefix is not None and src_prefix.endswith("/"):
+            src_prefix = src_prefix[:-1]
+        self.src_prefix = src_prefix
         self.client = client
         self.idx = '/__replication' + self.prefix
 
+    def key_for(self, orig_key):
+        if self.src_prefix is None:
+            return orig_key
+        return self.prefix + orig_key.replace(self.src_prefix, '', 1)
+
     def write(self, obj):
         idx = obj.modifiedIndex
-        key = self.prefix + obj.key
+        key = self.key_for(obj.key)
         try:
             log.debug("Event: %s on %s", obj.action, key)
             if obj.action == 'create':
@@ -47,13 +55,12 @@ class Etcd2Writer(object):
             self.client.write(self.idx, idx, prevExist=True)
             return obj.modifiedIndex
 
-
     def load_from_dump(self, rootobj):
         for obj in rootobj.leaves:
             if obj.key is None:
                 continue
             log.debug("Loading %s", obj.key)
-            key = self.prefix + obj.key
+            key = self.key_for(obj.key)
             self.client.write(
                 key, obj.value,
                 dir=obj.dir,
@@ -76,5 +83,8 @@ class Etcd2Writer(object):
 
             return True
         else:
-            self.client.delete(self.idx)
+            try:
+                self.client.delete(self.idx)
+            except etcd.EtcdKeyNotFound:
+                log.info("Could not find %s, assuming new replica", self.idx)
             return True
