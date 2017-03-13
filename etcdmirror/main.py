@@ -118,6 +118,13 @@ class ReplicationController(object):
         self.running = False
         reactor.callLater(0, reactor.stop)
 
+    def _fail(self, reason):
+        log.critical(reason)
+        self.running = False
+        self.has_failures = True
+        if reactor.running:
+            reactor.stop()
+
     @property
     def current_index(self):
         log.info("Current index read from %s", self.writer.idx)
@@ -129,17 +136,14 @@ class ReplicationController(object):
         log.info("Removing old data from the destination cluster")
 
         if not self.writer.cleanup():
-            log.critical("Could not cleanup the destination directory")
-            self.has_failures = True
-            return
+            return self._fail("Could not cleanup the destination directory")
 
         log.info("Now copying over the initial data")
         try:
             root = self.reader.all_objects()
             self.writer.load_from_dump(root)
         except etcd.EtcdException as e:
-            log.critical("Error while copying data: %s", e)
-            self.has_failures = True
+            self._fail("Error while copying data: %s" % e)
 
     def replicate(self, idx):
         """
@@ -154,18 +158,14 @@ class ReplicationController(object):
         if failure.check(defer.CancelledError):
             return None
         elif failure.check(etcd.EtcdEventIndexCleared):
-            log.error(
+            self._fail(
                 "The current replication index is not available anymore "
                 "in the etcd source cluster.")
-            log.error("Restart the process with --reload instead.")
-            reactor.stop()
-            self.has_failures = True
+            log.info("Restart the process with --reload instead.")
         elif failure.check(SystemExit):
             return None
         else:
-            log.error("Generic error: %s", failure.getErrorMessage())
-            self.has_failures = True
-            reactor.stop()
+            self._fail("Generic error: %s" % failure.getErrorMessage())
 
     def read_write(self, idx):
         while self.running:
@@ -183,10 +183,7 @@ class ReplicationController(object):
         LagCalculator.setReplica(idx1)
         if not idx1:
             # Replication encountered a fatal error
-            log.err("Stopping the process. Last valid index: %d", idx)
-            reactor.stop()
-            self.running = False
-            self.has_failures = True
+            return self._fail("Stopping the process. Last valid index: %d" % idx)
         return idx1
 
 

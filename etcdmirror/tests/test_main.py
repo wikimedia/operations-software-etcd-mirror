@@ -36,6 +36,19 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
             self.assertFalse(self.rc.running)
             mock_reactor.callLater.assert_called_with(0, mock_reactor.stop)
 
+    def test_fail(self):
+        with mock.patch('etcdmirror.main.reactor') as mock_reactor:
+            mock_reactor.running = True
+            self.rc._fail("reason")
+            self.assertFalse(self.rc.running)
+            self.assertTrue(self.rc.has_failures)
+            mock_reactor.stop.assert_called_with()
+            mock_reactor.running = False
+            mock_reactor.stop.reset_mock()
+            with mock.patch('etcdmirror.log.log.critical') as mock_log:
+                self.rc._fail("reason")
+                mock_log.assert_called_with("reason")
+
     def test_current_index(self):
         """
         Test the value of the ReplicationController.current_index property
@@ -84,21 +97,19 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
         failure_ev_cleared = failure.Failure("nope", etcd.EtcdEventIndexCleared)
         failure_system_exit = failure.Failure("1", SystemExit)
         failure_generic = failure.Failure("test", ValueError)
-        with mock.patch('etcdmirror.main.reactor') as mock_reactor:
-            self.assertEqual(self.rc.manage_failure(failure_deferred), None)
-            mock_reactor.stop.assert_not_called()
-            self.assertEqual(self.rc.manage_failure(failure_ev_cleared), None)
-            mock_reactor.stop.assert_called_with()
-            self.assertTrue(self.rc.has_failures)
-            mock_reactor.stop.reset_mock()
-            # What about other failures?
-            with mock.patch('etcdmirror.log.log.error') as mock_error:
-                self.rc.manage_failure(failure_generic)
-                mock_error.assert_called_with("Generic error: %s", 'test')
-                mock_reactor.stop.assert_called_with()
-            mock_reactor.stop.reset_mock()
-            self.rc.manage_failure(failure_system_exit)
-            mock_reactor.stop.assert_not_called()
+        self.rc._fail = mock.Mock()
+        self.assertEqual(self.rc.manage_failure(failure_deferred), None)
+        self.rc._fail.assert_not_called()
+        self.assertEqual(self.rc.manage_failure(failure_ev_cleared), None)
+        self.rc._fail.assert_called_with(
+            "The current replication index is not available anymore "
+            "in the etcd source cluster.")
+        # What about other failures?
+        self.rc.manage_failure(failure_generic)
+        self.rc._fail.assert_called_with("Generic error: test")
+        self.rc._fail.reset_mock()
+        self.rc.manage_failure(failure_system_exit)
+        self.rc._fail.assert_not_called()
 
     def test_read_write_not_running(self):
         """
