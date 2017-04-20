@@ -6,17 +6,21 @@ from etcdmirror.log import log
 class Etcd2Writer(object):
 
     def __init__(self, client, prefix, src_prefix=None):
-        log.info(prefix)
+        if not prefix.startswith('/'):
+            raise ValueError("All paths must be absolute: %s", prefix)
         self.prefix = prefix
-        if src_prefix is not None and src_prefix.endswith("/"):
-            src_prefix = src_prefix[:-1]
+        if src_prefix is not None:
+            if not src_prefix.startswith('/'):
+                raise ValueError("All paths must be absolute: %s", src_prefix)
+            if src_prefix.endswith('/'):
+                src_prefix = src_prefix[:-1]
         self.src_prefix = src_prefix
         self.client = client
         self.idx = '/__replication' + self.prefix
 
     def key_for(self, orig_key):
         if self.src_prefix is None:
-            return orig_key
+            return self.prefix + orig_key
         return self.prefix + orig_key.replace(self.src_prefix, '', 1)
 
     def write(self, obj):
@@ -41,7 +45,7 @@ class Etcd2Writer(object):
                 self.client.delete(key, recursive=obj.dir)
             elif obj.action == 'expire':
                 try:
-                    self.client.delete(key, dir=obj.dir, recursive=obj.dir)
+                    self.client.delete(key, recursive=obj.dir)
                 except etcd.EtcdKeyNotFound:
                     log.info("Not deleting already expired key %s", key)
             else:
@@ -69,22 +73,23 @@ class Etcd2Writer(object):
 
     def cleanup(self):
         try:
+            self.client.delete(self.idx)
+        except etcd.EtcdKeyNotFound:
+            log.info("Could not find %s, assuming new replica", self.idx)
+        except:
+            log.info("Error removing the replication key, giving up")
+            return False
+        try:
             self.client.delete(self.prefix, recursive=True)
         except etcd.EtcdKeyNotFound:
             log.info("Key %s not found, not cleaning up", self.prefix)
-            return True
         except etcd.EtcdRootReadOnly:
-            self.client.delete(self.idx)
             for obj in self.client.read(self.prefix).leaves:
                 if obj.key is None:
                     continue
                 log.debug("Removing %s", obj.key)
                 self.client.delete(obj.key, recursive=obj.dir)
-
-            return True
-        else:
-            try:
-                self.client.delete(self.idx)
-            except etcd.EtcdKeyNotFound:
-                log.info("Could not find %s, assuming new replica", self.idx)
-            return True
+        except:
+            log.error("Error removing the replica directory")
+            return False
+        return True

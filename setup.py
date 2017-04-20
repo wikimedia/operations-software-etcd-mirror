@@ -7,11 +7,14 @@ from setuptools import setup, find_packages
 
 setup(
     name='etcdmirror',
-    version='0.0.3',
+    version='0.0.4',
     description='Tool to create a live replica of an etcd cluster',
     author='Giuseppe Lavagetto',
     author_email='joe@wikimedia.org',
+    license='GPLv3+',
     url='https://github.com/wikimedia/operations-software-etcd-mirror',
+    test_suite='nose.collector',
+    test_require=['mock', 'nose'],
     install_requires=['python-etcd>=0.4.3', 'twisted>=14.0.0', 'prometheus_client'],
     zip_safe=False,
     packages=find_packages(),

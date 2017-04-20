@@ -37,8 +37,9 @@ def cli_args():
     )
     parser.add_argument('-d', '--debug', action='store_true',
                         help="Show debug output. Definitely *very* verbose")
-    parser.add_argument('--reload', action='store_true',
-                        help="Wipe out the data on the receiving cluster, and load everything from the source")
+    parser.add_argument(
+        '--reload', action='store_true',
+        help="Wipe out the data on the receiving cluster, and load everything from the source")
     parser.add_argument(
         '--src-prefix', default='/',
         help="Prefix to replicate from the source. Defaults to '/'")
@@ -77,6 +78,8 @@ def main():
     reactor.listenTCP(args.port, factory)
     if args.reload:
         controller.reload_data()
+        if controller.has_failures:
+            sys.exit(1)
     try:
         idx = controller.current_index
     except etcd.EtcdKeyNotFound:
@@ -88,6 +91,7 @@ def main():
     reactor.run()
     if controller.has_failures:
         sys.exit(1)
+
 
 load_time = Summary('load_time', 'Dump and load time (seconds)')
 
@@ -113,7 +117,13 @@ class ReplicationController(object):
     def _sighandler(self, signum, frame):
         self.running = False
         reactor.callLater(0, reactor.stop)
-        sys.exit(0)
+
+    def _fail(self, reason):
+        log.critical(reason)
+        self.running = False
+        self.has_failures = True
+        if reactor.running:
+            reactor.stop()
 
     @property
     def current_index(self):
@@ -125,13 +135,15 @@ class ReplicationController(object):
         log.info("Re-loading the etcd data from the source cluster")
         log.info("Removing old data from the destination cluster")
 
-        if self.writer.cleanup():
-            log.info("Now copying over the initial data")
+        if not self.writer.cleanup():
+            return self._fail("Could not cleanup the destination directory")
+
+        log.info("Now copying over the initial data")
+        try:
             root = self.reader.all_objects()
             self.writer.load_from_dump(root)
-        else:
-            log.critical("Stopping execution")
-            sys.exit(1)
+        except etcd.EtcdException as e:
+            self._fail("Error while copying data: %s" % e)
 
     def replicate(self, idx):
         """
@@ -140,22 +152,20 @@ class ReplicationController(object):
         d = threads.deferToThread(self.read_write, idx+1)
         d.addCallback(self.replicate).addErrback(self.manage_failure)
         d.addCallback(lambda _: self.replicated_events.inc(1.0))
-
-    def replicate_blocking(self, idx):
-        log.info("Replicating to %s, starting from index %s", self.writer.prefix, idx+1)
-        while True:
-            idx = self.read_write(idx+1)
+        return d
 
     def manage_failure(self, failure):
         if failure.check(defer.CancelledError):
             return None
         elif failure.check(etcd.EtcdEventIndexCleared):
-            log.error("The current replication index is not available anymore in the etcd source cluster.")
-            log.error("Restart the process with --reload instead.")
-            reactor.stop()
-            self.has_failures = True
+            self._fail(
+                "The current replication index is not available anymore "
+                "in the etcd source cluster.")
+            log.info("Restart the process with --reload instead.")
         elif failure.check(SystemExit):
             return None
+        else:
+            self._fail("Generic error: %s" % failure.getErrorMessage())
 
     def read_write(self, idx):
         while self.running:
@@ -164,6 +174,8 @@ class ReplicationController(object):
                 break
             except etcd.EtcdWatchTimedOut:
                 pass
+        if not self.running:
+            return None
         LagCalculator.setOrigin(obj.etcd_index)
         log.info('Replicating key %s at index %s', obj.key, idx)
         with self.write_latency.time():
@@ -171,10 +183,7 @@ class ReplicationController(object):
         LagCalculator.setReplica(idx1)
         if not idx1:
             # Replication encountered a fatal error
-            log.err("Stopping the process. Last valid index: %d", idx)
-            reactor.stop()
-            self.running = False
-            self.has_failures = True
+            return self._fail("Stopping the process. Last valid index: %d" % idx)
         return idx1
 
 

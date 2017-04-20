@@ -36,6 +36,7 @@ class ServerRoot(Resource):
 /metrics: metrics in a format useful for prometheus
 """
 
+
 class LagCalculator(Resource):
     replica_idx = 0
     origin_idx = 0

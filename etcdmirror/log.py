@@ -48,7 +48,7 @@ class Logger(object):
                     self._genLogger(k))
 
     @staticmethod
-    def _to_str( level):
+    def _to_str(level):
         return Logger.levels.get(level, 'DEBUG')
 
     def _genLogger(self, lvl):
@@ -63,6 +63,7 @@ class Logger(object):
     @staticmethod
     def err(*args, **kw):
         return tw_log.err(*args, **kw)
+
 
 stderr = LogObserver(sys.stderr)
 log = Logger(observer=stderr)
