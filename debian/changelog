@@ -1,3 +1,11 @@
+etcd-mirror (0.0.4-2) jessie-wikimedia; urgency=medium
+
+  * Fixed various bugs
+  * Better error handling
+  * Correctly handle sys.exit()
+
+ -- Giuseppe Lavagetto <glavagetto@wikimedia.org>  Thu, 20 Apr 2017 15:27:18 +0200
+
 etcd-mirror (0.0.3-1) jessie-wikimedia; urgency=medium
 
   * Added --strip and --port
