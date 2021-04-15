@@ -116,7 +116,7 @@ class TestEtcd2Writer(unittest.TestCase):
     def test_load_from_dump(self):
         rootobj = mock.Mock()
         rootobj.etcd_index = 1237
-        rootobj.leaves = [l for l in self.leaves()]
+        rootobj.leaves = [leaf for leaf in self.leaves()]
         self.writer.src_prefix = '/my'
         calls = [
             mock.call('/test/key', None, dir=True, ttl=None),
@@ -152,7 +152,7 @@ class TestEtcd2Writer(unittest.TestCase):
 
         # When trying to delete root
         obj = mock.Mock()
-        leaves = [l for l in self.leaves(False)]
+        leaves = [leaf for leaf in self.leaves(False)]
         obj.leaves = [leaves[0], leaves[1]]
         self.client.read.return_value = obj
         self.client.delete = mock.Mock(side_effect=[True, etcd.EtcdRootReadOnly("test"), True])
