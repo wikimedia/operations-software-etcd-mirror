@@ -76,8 +76,8 @@ class Etcd2Writer(object):
             self.client.delete(self.idx)
         except etcd.EtcdKeyNotFound:
             log.info("Could not find %s, assuming new replica", self.idx)
-        except Exception:
-            log.info("Error removing the replication key, giving up")
+        except Exception as error:
+            log.info("Error removing the replication key, giving up: %s", error)
             return False
         try:
             self.client.delete(self.prefix, recursive=True)
@@ -89,7 +89,7 @@ class Etcd2Writer(object):
                     continue
                 log.debug("Removing %s", obj.key)
                 self.client.delete(obj.key, recursive=obj.dir)
-        except Exception:
-            log.error("Error removing the replica directory")
+        except Exception as error:
+            log.error("Error removing the replica directory: %s", error)
             return False
         return True
