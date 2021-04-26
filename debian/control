@@ -2,13 +2,13 @@ Source: etcd-mirror
 Section: devel
 Priority: extra
 Maintainer: Giuseppe Lavagetto <glavagetto@wikimedia.org>
-Build-Depends: debhelper (>= 9), dh-python, python-all, python-setuptools, python3-all, python3-setuptools, python3-idna
+Build-Depends: debhelper (>= 9), dh-python, python-all, python-setuptools, python3-all, python3-setuptools
 Standards-Version: 3.9.8
 X-Python-Version: >= 2.7
 
 Package: etcd-mirror
 Architecture: all
-Depends: ${python:Depends}, ${misc:Depends}
+Depends: ${python:Depends}, ${misc:Depends}, python-idna
 Suggests: python-etcd-mirror-doc
 Description: etcd mirroring tool
  etcd-mirror listen to events on one etcd cluster and

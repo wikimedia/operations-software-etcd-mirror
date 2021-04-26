@@ -1,3 +1,9 @@
+etcd-mirror (0.0.6-2) buster-wikimedia; urgency=medium
+
+  * Fix idna dependency
+
+ -- Janis Meybohm <jmeybohm@wikimedia.org>  Mon, 26 Apr 2021 11:07:49 +0200
+
 etcd-mirror (0.0.6-1) buster-wikimedia; urgency=medium
 
   * Add dependency to python3-idna
