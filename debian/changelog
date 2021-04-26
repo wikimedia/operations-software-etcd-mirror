@@ -1,3 +1,10 @@
+etcd-mirror (0.0.6-1) buster-wikimedia; urgency=medium
+
+  * Add dependency to python3-idna
+  * Log the exception message in case cleaup fails
+
+ -- Janis Meybohm <jmeybohm@wikimedia.org>  Mon, 26 Apr 2021 10:53:02 +0200
+
 etcd-mirror (0.0.5-1) buster-wikimedia; urgency=medium
 
   * Fix flake8 issues, repackage for buster
