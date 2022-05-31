@@ -14,7 +14,8 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
         self.writer = mock.MagicMock(autospec=writer.Etcd2Writer)
         with mock.patch("etcdmirror.main.Counter"):
             with mock.patch("etcdmirror.main.Histogram"):
-                self.rc = main.ReplicationController(self.reader, self.writer)
+                with mock.patch("etcdmirror.main.Gauge"):
+                    self.rc = main.ReplicationController(self.reader, self.writer)
         self.reactor = twisted.test.proto_helpers.MemoryReactor()
 
     def test_init(self):

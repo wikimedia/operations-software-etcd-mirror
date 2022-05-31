@@ -4,7 +4,7 @@ import sys
 from argparse import ArgumentParser
 
 import etcd
-from prometheus_client import Counter, Histogram, Summary
+from prometheus_client import Counter, Gauge, Histogram, Summary
 from twisted.internet import defer, reactor, threads
 from twisted.web.server import Site
 from urlparse import urlparse
@@ -128,6 +128,14 @@ class ReplicationController(object):
             url=self.writer.client.base_uri,
             prefix=self.writer.prefix,
         )
+        self.lag = Gauge(
+            "lag", "Calculated replica lag", ["url", "prefix"], namespace=METRICS_NAMESPACE
+        ).labels(
+            url=self.writer.client.base_uri,
+            prefix=self.writer.prefix,
+        )
+        self.lag.set_function(LagCalculator.getLag)
+
         for sig in [signal.SIGTERM, signal.SIGHUP, signal.SIGINT]:
             signal.signal(sig, self._sighandler)
 
