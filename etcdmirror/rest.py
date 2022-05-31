@@ -4,14 +4,15 @@
 
   A simple http server that exposes some data on the replication process
 """
-from twisted.web.resource import Resource
 from prometheus_client.twisted import MetricsResource
+from twisted.web.resource import Resource
 
 
 class NotFound(Resource):
     """
     Handle unknown entries
     """
+
     isLeaf = True
 
     def render_GET(self, request):
@@ -23,9 +24,9 @@ class ServerRoot(Resource):
     """Root url resource"""
 
     def getChild(self, path, request):
-        if path == 'lag':
+        if path == "lag":
             return LagCalculator()
-        elif path == 'metrics':
+        elif path == "metrics":
             return MetricsResource()
         else:
             return NotFound()

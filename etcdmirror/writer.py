@@ -4,46 +4,44 @@ from etcdmirror.log import log
 
 
 class Etcd2Writer(object):
-
     def __init__(self, client, prefix, src_prefix=None):
-        if not prefix.startswith('/'):
+        if not prefix.startswith("/"):
             raise ValueError("All paths must be absolute: %s", prefix)
         self.prefix = prefix
         if src_prefix is not None:
-            if not src_prefix.startswith('/'):
+            if not src_prefix.startswith("/"):
                 raise ValueError("All paths must be absolute: %s", src_prefix)
-            if src_prefix.endswith('/'):
+            if src_prefix.endswith("/"):
                 src_prefix = src_prefix[:-1]
         self.src_prefix = src_prefix
         self.client = client
-        self.idx = '/__replication' + self.prefix
+        self.idx = "/__replication" + self.prefix
 
     def key_for(self, orig_key):
         if self.src_prefix is None:
             return self.prefix + orig_key
-        return self.prefix + orig_key.replace(self.src_prefix, '', 1)
+        return self.prefix + orig_key.replace(self.src_prefix, "", 1)
 
     def write(self, obj):
         idx = obj.modifiedIndex
         key = self.key_for(obj.key)
         try:
             log.debug("Event: %s on %s", obj.action, key)
-            if obj.action == 'create':
+            if obj.action == "create":
+                self.client.write(key, obj.value, dir=obj.dir, prevExist=False, ttl=obj.ttl)
+            elif obj.action == "compareAndSwap":
                 self.client.write(
-                    key, obj.value,
-                    dir=obj.dir, prevExist=False,
-                    ttl=obj.ttl)
-            elif obj.action == 'compareAndSwap':
-                self.client.write(
-                    key, obj.value, dir=obj.dir,
+                    key,
+                    obj.value,
+                    dir=obj.dir,
                     prevValue=obj._prev_node.value,
-                    ttl=obj.ttl)
-            elif obj.action == 'set':
-                self.client.write(key, obj.value, dir=obj.dir,
-                                  ttl=obj.ttl)
-            elif obj.action == 'delete':
+                    ttl=obj.ttl,
+                )
+            elif obj.action == "set":
+                self.client.write(key, obj.value, dir=obj.dir, ttl=obj.ttl)
+            elif obj.action == "delete":
                 self.client.delete(key, recursive=obj.dir)
-            elif obj.action == 'expire':
+            elif obj.action == "expire":
                 try:
                     self.client.delete(key, recursive=obj.dir)
                 except etcd.EtcdKeyNotFound:
@@ -51,8 +49,7 @@ class Etcd2Writer(object):
             else:
                 log.warn("Unrecognized action %s, skipping", obj.action)
         except Exception as e:
-            log.error("Action %s failed on %s: %s", obj.action,
-                      key, e)
+            log.error("Action %s failed on %s: %s", obj.action, key, e)
             return False
         else:
             # If this causes an exception, we don't catch it on purpose
@@ -65,10 +62,7 @@ class Etcd2Writer(object):
                 continue
             log.debug("Loading %s", obj.key)
             key = self.key_for(obj.key)
-            self.client.write(
-                key, obj.value,
-                dir=obj.dir,
-                ttl=obj.ttl)
+            self.client.write(key, obj.value, dir=obj.dir, ttl=obj.ttl)
         self.client.write(self.idx, rootobj.etcd_index)
 
     def cleanup(self):
