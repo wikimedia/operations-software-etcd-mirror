@@ -14,6 +14,8 @@ from etcdmirror.reader import Etcd2Reader
 from etcdmirror.rest import LagCalculator, ServerRoot
 from etcdmirror.writer import Etcd2Writer
 
+METRICS_NAMESPACE = "etcdmirror"
+
 
 def read_config(url):
     parsed = urlparse(url)
@@ -108,7 +110,7 @@ def main():
         sys.exit(1)
 
 
-load_time = Summary("load_time", "Dump and load time (seconds)")
+load_time = Summary("load_time", "Dump and load time (seconds)", namespace=METRICS_NAMESPACE)
 
 
 class ReplicationController(object):
@@ -117,9 +119,11 @@ class ReplicationController(object):
         self.running = True
         self.reader = read
         self.writer = write
-        self.replicated_events = Counter("etcd_replicated_events", "Replica events treated")
+        self.replicated_events = Counter(
+            "replicated_events", "Replica events treated", namespace=METRICS_NAMESPACE
+        )
         self.write_latency = Histogram(
-            "etcd_write_latency", "Etcd write latencies", ["url", "prefix"]
+            "write_latency", "Etcd write latencies", ["url", "prefix"], namespace=METRICS_NAMESPACE
         ).labels(
             url=self.writer.client.base_uri,
             prefix=self.writer.prefix,
