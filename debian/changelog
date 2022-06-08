@@ -1,3 +1,10 @@
+etcd-mirror (0.0.7-1) buster-wikimedia; urgency=medium
+
+  * Namespace metrics under 'etcdmirror'
+  * Export 'lag' as gauge metric
+
+ -- Filippo Giunchedi <filippo@wikimedia.org>  Wed, 08 Jun 2022 10:25:59 +0200
+
 etcd-mirror (0.0.6-2) buster-wikimedia; urgency=medium
 
   * Fix idna dependency
