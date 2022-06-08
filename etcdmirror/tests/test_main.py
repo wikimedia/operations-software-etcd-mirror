@@ -9,13 +9,13 @@ from etcdmirror import main, reader, writer
 
 
 class TestReplicationController(twisted.trial.unittest.TestCase):
-
     def setUp(self):
         self.reader = mock.MagicMock(autospec=reader.Etcd2Reader)
         self.writer = mock.MagicMock(autospec=writer.Etcd2Writer)
-        with mock.patch('etcdmirror.main.Counter'):
-            with mock.patch('etcdmirror.main.Histogram'):
-                self.rc = main.ReplicationController(self.reader, self.writer)
+        with mock.patch("etcdmirror.main.Counter"):
+            with mock.patch("etcdmirror.main.Histogram"):
+                with mock.patch("etcdmirror.main.Gauge"):
+                    self.rc = main.ReplicationController(self.reader, self.writer)
         self.reactor = twisted.test.proto_helpers.MemoryReactor()
 
     def test_init(self):
@@ -31,13 +31,13 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
         """
         test the signal handler
         """
-        with mock.patch('etcdmirror.main.reactor') as mock_reactor:
+        with mock.patch("etcdmirror.main.reactor") as mock_reactor:
             self.rc._sighandler(1, 10)
             self.assertFalse(self.rc.running)
             mock_reactor.callLater.assert_called_with(0, mock_reactor.stop)
 
     def test_fail(self):
-        with mock.patch('etcdmirror.main.reactor') as mock_reactor:
+        with mock.patch("etcdmirror.main.reactor") as mock_reactor:
             mock_reactor.running = True
             self.rc._fail("reason")
             self.assertFalse(self.rc.running)
@@ -45,7 +45,7 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
             mock_reactor.stop.assert_called_with()
             mock_reactor.running = False
             mock_reactor.stop.reset_mock()
-            with mock.patch('etcdmirror.log.log.critical') as mock_log:
+            with mock.patch("etcdmirror.log.log.critical") as mock_log:
                 self.rc._fail("reason")
                 mock_log.assert_called_with("reason")
 
@@ -56,7 +56,7 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
         obj = mock.Mock()
         obj.value = "123456"
         self.writer.client.read.return_value = obj
-        self.writer.idx = '/__replication/test'
+        self.writer.idx = "/__replication/test"
         self.assertEqual(self.rc.current_index, 123456)
         # now let's test the case in which the key is not found. The exception
         # should not be intercepted as it's tested for.
@@ -102,8 +102,8 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
         self.rc._fail.assert_not_called()
         self.assertEqual(self.rc.manage_failure(failure_ev_cleared), None)
         self.rc._fail.assert_called_with(
-            "The current replication index is not available anymore "
-            "in the etcd source cluster.")
+            "The current replication index is not available anymore in the etcd source cluster."
+        )
         # What about other failures?
         self.rc.manage_failure(failure_generic)
         self.rc._fail.assert_called_with("Generic error: test")
@@ -128,10 +128,10 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
         obj = mock.Mock()
         obj.etcd_index = 130
         obj.modifiedIndex = 103
-        obj.key = '/test/test1'
+        obj.key = "/test/test1"
         self.reader.read.return_value = obj
         self.writer.write.return_value = obj.modifiedIndex
-        with mock.patch('etcdmirror.main.LagCalculator') as mock_rest:
+        with mock.patch("etcdmirror.main.LagCalculator") as mock_rest:
             self.rc.running = True
             self.rc.has_failures = False
             self.assertEqual(self.rc.read_write(102), obj.modifiedIndex)
@@ -147,7 +147,7 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
         """
         # Now let's test what's the behaviour when writing fails
         self.writer.write.return_value = False
-        with mock.patch('etcdmirror.main.reactor') as mock_reactor:
+        with mock.patch("etcdmirror.main.reactor") as mock_reactor:
             self.rc.has_failures = False
             self.rc.read_write(102)
             mock_reactor.stop.assert_called_with()
@@ -161,11 +161,8 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
         obj = mock.Mock()
         obj.etcd_index = 130
         obj.modifiedIndex = 103
-        obj.key = '/test/test1'
+        obj.key = "/test/test1"
         self.reader.read.side_effect = [etcd.EtcdWatchTimedOut(60), obj]
         self.writer.write.return_value = obj.modifiedIndex
         self.assertEqual(self.rc.read_write(102), obj.modifiedIndex)
-        self.reader.read.assert_has_calls([
-            mock.call(102),
-            mock.call(102)
-        ])
+        self.reader.read.assert_has_calls([mock.call(102), mock.call(102)])
