@@ -52,7 +52,7 @@ class LagCalculator(Resource):
 
     @classmethod
     def getLag(cls):
-        return cls.origin_id - cls.replica_idx
+        return cls.origin_idx - cls.replica_idx
 
     def render_GET(self, request):
         return "%d\n" % self.getLag()
