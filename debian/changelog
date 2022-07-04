@@ -1,3 +1,9 @@
+etcd-mirror (0.0.8-1) buster-wikimedia; urgency=medium
+
+  * Fix 'lag' as gauge metric and add tests
+
+ -- Filippo Giunchedi <filippo@debian.org>  Mon, 04 Jul 2022 14:05:16 +0200
+
 etcd-mirror (0.0.7-1) buster-wikimedia; urgency=medium
 
   * Namespace metrics under 'etcdmirror'

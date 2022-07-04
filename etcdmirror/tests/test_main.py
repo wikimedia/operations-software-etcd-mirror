@@ -14,7 +14,8 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
         self.writer = mock.MagicMock(autospec=writer.Etcd2Writer)
         with mock.patch("etcdmirror.main.Counter"):
             with mock.patch("etcdmirror.main.Histogram"):
-                with mock.patch("etcdmirror.main.Gauge"):
+                # Mock the register to allow metric double registration
+                with mock.patch("prometheus_client.registry.REGISTRY.register"):
                     self.rc = main.ReplicationController(self.reader, self.writer)
         self.reactor = twisted.test.proto_helpers.MemoryReactor()
 
@@ -166,3 +167,20 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
         self.writer.write.return_value = obj.modifiedIndex
         self.assertEqual(self.rc.read_write(102), obj.modifiedIndex)
         self.reader.read.assert_has_calls([mock.call(102), mock.call(102)])
+
+    def test_get_lag(self):
+        """
+        Test behaviour of ReplicationController lag metric
+        """
+
+        obj = mock.Mock()
+        obj.etcd_index = 130
+        obj.modifiedIndex = 103
+        obj.key = "/test/test1"
+        self.reader.read.return_value = obj
+        self.writer.write.return_value = obj.modifiedIndex
+
+        self.rc.read_write(100)
+        lag_sample = self.rc.lag._child_samples()[0]
+
+        self.assertEqual(lag_sample[2], 27)
