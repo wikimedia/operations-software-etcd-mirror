@@ -1,3 +1,10 @@
+etcd-mirror (0.0.9-1) bullseye-wikimedia; urgency=medium
+
+  * Drop python 2 dependencies
+  * Rebuild for bullseye
+
+ -- Alexandros Kosiaris <akosiaris@wikimedia.org>  Fri, 08 Jul 2022 11:25:48 +0300
+
 etcd-mirror (0.0.8-1) buster-wikimedia; urgency=medium
 
   * Fix 'lag' as gauge metric and add tests
