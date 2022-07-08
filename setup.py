@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="etcdmirror",
-    version="0.0.6",
+    version="0.0.9",
     description="Tool to create a live replica of an etcd cluster",
     author="Giuseppe Lavagetto",
     author_email="joe@wikimedia.org",

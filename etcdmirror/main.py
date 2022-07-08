@@ -2,12 +2,12 @@ import logging
 import signal
 import sys
 from argparse import ArgumentParser
+from urllib.parse import urlparse
 
 import etcd
 from prometheus_client import Counter, Gauge, Histogram, Summary
 from twisted.internet import defer, reactor, threads
 from twisted.web.server import Site
-from urlparse import urlparse
 
 from etcdmirror.log import LogObserver, log
 from etcdmirror.reader import Etcd2Reader
