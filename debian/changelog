@@ -1,3 +1,12 @@
+etcd-mirror (0.0.10-1) bullseye-wikimedia; urgency=medium
+
+  * Fix python3 compatibility
+  * Return bytes from render_GET, and accept a bytes path
+  * Update tox env to python3.9 and 3.11
+  * Move from nose to nose-py3 (nose does not support python >= 3.9)
+
+ -- Janis Meybohm <jmeybohm@wikimedia.org>  Fri, 15 Sep 2023 09:54:35 +0200
+
 etcd-mirror (0.0.9-1) bullseye-wikimedia; urgency=medium
 
   * Drop python 2 dependencies

@@ -14,7 +14,7 @@ setup(
     license="GPLv3+",
     url="https://github.com/wikimedia/operations-software-etcd-mirror",
     test_suite="nose.collector",
-    test_require=["mock", "nose"],
+    test_require=["mock", "nose-py3"],
     install_requires=["python-etcd>=0.4.3", "twisted>=14.0.0", "prometheus_client"],
     zip_safe=False,
     packages=find_packages(),

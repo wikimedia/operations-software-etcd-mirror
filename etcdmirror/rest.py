@@ -17,22 +17,23 @@ class NotFound(Resource):
 
     def render_GET(self, request):
         request.setResponseCode(404)
-        return "The desired url {} was not found".format(request.uri)
+        return "The desired url {} was not found".format(request.uri.decode()).encode()
 
 
 class ServerRoot(Resource):
     """Root url resource"""
 
     def getChild(self, path, request):
-        if path == "lag":
+        path_str = path.decode()
+        if path_str == "lag":
             return LagCalculator()
-        elif path == "metrics":
+        elif path_str == "metrics":
             return MetricsResource()
         else:
             return NotFound()
 
     def render_GET(self, request):
-        return """
+        return b"""
 /lag: Replication lag (in term of etcd indexes)
 /metrics: metrics in a format useful for prometheus
 """
@@ -55,4 +56,4 @@ class LagCalculator(Resource):
         return cls.origin_idx - cls.replica_idx
 
     def render_GET(self, request):
-        return "%d\n" % self.getLag()
+        return b"%d\n" % self.getLag()
