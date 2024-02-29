@@ -10,23 +10,30 @@ class Etcd2Writer(object):
         if not prefix.startswith("/"):
             raise ValueError("All paths must be absolute: %s", prefix)
         self.prefix = prefix
+        self.trimmed_prefix = prefix.rstrip("/")
         if src_prefix is not None:
             if not src_prefix.startswith("/"):
                 raise ValueError("All paths must be absolute: %s", src_prefix)
-            if src_prefix.endswith("/"):
-                src_prefix = src_prefix[:-1]
+            # If src_prefix is empty, there is no need to attempt to trim it
+            # from the src key later on.
+            src_prefix = src_prefix.rstrip("/") or None
         self.src_prefix = src_prefix
         self.client = client
-        self.idx = "/__replication" + self.prefix
         if ignore_keys is None:
             self.ignore_regex = None
         else:
             self.ignore_regex = re.compile(ignore_keys)
+        # If trimmed_prefix is empty (full keyspace), use a distinct suffix on
+        # the index key. This ensures /__replication is always a directory, and
+        # enables switching between full / partial keyspace mirroring without a
+        # manual cleanup.
+        self.idx = "/__replication" + (self.trimmed_prefix if self.trimmed_prefix else "/__ROOT__")
+        log.info("Replication index will be tracked in: %s", self.idx)
 
     def key_for(self, orig_key):
         if self.src_prefix is None:
-            return self.prefix + orig_key
-        return self.prefix + orig_key.replace(self.src_prefix, "", 1)
+            return self.trimmed_prefix + orig_key
+        return self.trimmed_prefix + orig_key.replace(self.src_prefix, "", 1)
 
     def ignore_key(self, orig_key):
         if self.ignore_regex is None:

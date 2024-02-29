@@ -2,6 +2,7 @@ import unittest
 
 import etcd
 import mock
+from parameterized import parameterized
 
 from etcdmirror import writer
 
@@ -29,15 +30,35 @@ class TestEtcd2Writer(unittest.TestCase):
         with self.assertRaises(ValueError):
             writer.Etcd2Writer(self.client, "/test", "test2/")
 
-    def test_key_for(self):
+    @parameterized.expand(
+        [
+            ("No src_prefix", "/test", None, "/example/key", "/test/example/key"),
+            ("With src_prefix", "/test", "/example", "/example/key", "/test/key"),
+            ("Root prefix, no src_prefix", "/", None, "/example/key", "/example/key"),
+            ("Root prefix, with src_prefix", "/", "/example", "/example/key", "/key"),
+            ("With root src_prefix", "/test", "/", "/example/key", "/test/example/key"),
+            ("Root prefix, with root src_prefix", "/", "/", "/example/key", "/example/key"),
+        ]
+    )
+    def test_key_for(self, desc, dst_prefix, src_prefix, input_key, output_key):
         """
         Test key produced by the `key_for` method
         """
-        # No src_prefix
-        self.assertEqual(self.writer.key_for("/example/key"), "/test/example/key")
-        # With src_prefix
-        w = writer.Etcd2Writer(self.client, "/test", "/example")
-        self.assertEqual(w.key_for("/example/key"), "/test/key")
+        w = writer.Etcd2Writer(self.client, dst_prefix, src_prefix=src_prefix)
+        self.assertEqual(w.key_for(input_key), output_key, msg=desc)
+
+    @parameterized.expand(
+        [
+            ("Normal prefix", "/test", "/__replication/test"),
+            ("With trailing slash", "/test/", "/__replication/test"),
+            ("Root prefix", "/", "/__replication/__ROOT__"),
+        ]
+    )
+    def test_idx(self, desc, dst_prefix, idx):
+        """
+        Test replication index key generated during construction
+        """
+        self.assertEqual(writer.Etcd2Writer(self.client, dst_prefix).idx, idx, msg=desc)
 
     def test_write(self):
         obj = mock.MagicMock()
