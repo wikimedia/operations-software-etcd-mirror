@@ -67,6 +67,13 @@ def cli_args():
         default="/replica",
         help="Prefix to replicate to on the destination. Defaults to '/replica'",
     )
+    parser.add_argument(
+        "--src-ignore-keys-regex",
+        help=(
+            "Regex pattern (full match) that may be used to ignore certain source keys for "
+            "replication, while still advancing the replication index."
+        ),
+    )
     parser.add_argument("--port", help="port to run the web interface on", type=int, default=8000)
     parser.add_argument("src", metavar="SRC", help="Full url of the source etcd machine.")
     parser.add_argument("dst", metavar="DST", help="Full url of the destination etcd machine.")
@@ -87,9 +94,18 @@ def main():
     destination = etcd.Client(**dst_conf)
     read = Etcd2Reader(source, args.src_prefix)
     if args.strip:
-        write = Etcd2Writer(destination, args.dst_prefix, args.src_prefix)
+        write = Etcd2Writer(
+            destination,
+            args.dst_prefix,
+            src_prefix=args.src_prefix,
+            ignore_keys=args.src_ignore_keys_regex,
+        )
     else:
-        write = Etcd2Writer(destination, args.dst_prefix)
+        write = Etcd2Writer(
+            destination,
+            args.dst_prefix,
+            ignore_keys=args.src_ignore_keys_regex,
+        )
     controller = ReplicationController(read, write)
     factory = Site(ServerRoot())
     reactor.listenTCP(args.port, factory)

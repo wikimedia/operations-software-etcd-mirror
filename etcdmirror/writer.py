@@ -1,10 +1,12 @@
+import re
+
 import etcd
 
 from etcdmirror.log import log
 
 
 class Etcd2Writer(object):
-    def __init__(self, client, prefix, src_prefix=None):
+    def __init__(self, client, prefix, src_prefix=None, ignore_keys=None):
         if not prefix.startswith("/"):
             raise ValueError("All paths must be absolute: %s", prefix)
         self.prefix = prefix
@@ -16,53 +18,70 @@ class Etcd2Writer(object):
         self.src_prefix = src_prefix
         self.client = client
         self.idx = "/__replication" + self.prefix
+        if ignore_keys is None:
+            self.ignore_regex = None
+        else:
+            self.ignore_regex = re.compile(ignore_keys)
 
     def key_for(self, orig_key):
         if self.src_prefix is None:
             return self.prefix + orig_key
         return self.prefix + orig_key.replace(self.src_prefix, "", 1)
 
+    def ignore_key(self, orig_key):
+        if self.ignore_regex is None:
+            return False
+        return self.ignore_regex.fullmatch(orig_key) is not None
+
+    def apply_action(self, obj, key):
+        log.debug("Event: %s on %s", obj.action, key)
+        if obj.action == "create":
+            self.client.write(key, obj.value, dir=obj.dir, prevExist=False, ttl=obj.ttl)
+        elif obj.action == "compareAndSwap":
+            self.client.write(
+                key,
+                obj.value,
+                dir=obj.dir,
+                prevValue=obj._prev_node.value,
+                ttl=obj.ttl,
+            )
+        elif obj.action == "set":
+            self.client.write(key, obj.value, dir=obj.dir, ttl=obj.ttl)
+        elif obj.action == "delete":
+            self.client.delete(key, recursive=obj.dir)
+        elif obj.action == "expire":
+            try:
+                self.client.delete(key, recursive=obj.dir)
+            except etcd.EtcdKeyNotFound:
+                log.info("Not deleting already expired key %s", key)
+        else:
+            log.warn("Unrecognized action %s, skipping", obj.action)
+
     def write(self, obj):
         idx = obj.modifiedIndex
-        key = self.key_for(obj.key)
-        try:
-            log.debug("Event: %s on %s", obj.action, key)
-            if obj.action == "create":
-                self.client.write(key, obj.value, dir=obj.dir, prevExist=False, ttl=obj.ttl)
-            elif obj.action == "compareAndSwap":
-                self.client.write(
-                    key,
-                    obj.value,
-                    dir=obj.dir,
-                    prevValue=obj._prev_node.value,
-                    ttl=obj.ttl,
-                )
-            elif obj.action == "set":
-                self.client.write(key, obj.value, dir=obj.dir, ttl=obj.ttl)
-            elif obj.action == "delete":
-                self.client.delete(key, recursive=obj.dir)
-            elif obj.action == "expire":
-                try:
-                    self.client.delete(key, recursive=obj.dir)
-                except etcd.EtcdKeyNotFound:
-                    log.info("Not deleting already expired key %s", key)
-            else:
-                log.warn("Unrecognized action %s, skipping", obj.action)
-        except Exception as e:
-            log.error("Action %s failed on %s: %s", obj.action, key, e)
-            return False
+        if self.ignore_key(obj.key):
+            log.debug("Ignoring operation on %s", obj.key)
         else:
-            # If this causes an exception, we don't catch it on purpose
-            self.client.write(self.idx, idx, prevExist=True)
-            return obj.modifiedIndex
+            key = self.key_for(obj.key)
+            try:
+                self.apply_action(obj, key)
+            except Exception as e:
+                log.error("Action %s failed on %s: %s", obj.action, key, e)
+                return False
+        # If this causes an exception, we don't catch it on purpose
+        self.client.write(self.idx, idx, prevExist=True)
+        return obj.modifiedIndex
 
     def load_from_dump(self, rootobj):
         for obj in rootobj.leaves:
             if obj.key is None:
                 continue
-            log.debug("Loading %s", obj.key)
-            key = self.key_for(obj.key)
-            self.client.write(key, obj.value, dir=obj.dir, ttl=obj.ttl)
+            if self.ignore_key(obj.key):
+                log.debug("Ignoring %s during loading", obj.key)
+            else:
+                log.debug("Loading %s", obj.key)
+                key = self.key_for(obj.key)
+                self.client.write(key, obj.value, dir=obj.dir, ttl=obj.ttl)
         self.client.write(self.idx, rootobj.etcd_index)
 
     def cleanup(self):

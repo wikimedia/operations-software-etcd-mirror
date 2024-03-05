@@ -89,6 +89,32 @@ class TestEtcd2Writer(unittest.TestCase):
         obj.action = "delete"
         self.assertFalse(self.writer.write(obj))
 
+    def test_write_with_ignored_keys(self):
+        obj = mock.MagicMock()
+        obj.key = "/some/key"
+        obj.action = "set"
+        obj.value = "somevalue"
+        obj.dir = False
+        obj.ttl = 15
+        obj.modifiedIndex = 1234
+        # Ignored: only replication index is written
+        w = writer.Etcd2Writer(self.client, "/test", ignore_keys="/some/key")
+        res = w.write(obj)
+        self.assertEqual(res, 1234)
+        self.client.write.assert_called_once_with("/__replication/test", 1234, prevExist=True)
+        self.client.write.reset_mocks()
+        # Not ignored: ignored keys require full-match
+        obj.key = "/some/keys/1"
+        obj.modifiedIndex = 1235
+        res = w.write(obj)
+        self.assertEqual(res, 1235)
+        self.client.write.assert_has_calls(
+            [
+                mock.call("/test/some/keys/1", "somevalue", dir=False, ttl=15),
+                mock.call("/__replication/test", 1235, prevExist=True),
+            ]
+        )
+
     def leaves(self, recursive=True):
         obj = mock.Mock()
         obj.key = None
@@ -123,6 +149,25 @@ class TestEtcd2Writer(unittest.TestCase):
         self.writer.load_from_dump(rootobj)
         self.client.write.assert_has_calls(calls)
         self.writer.src_prefix = None
+
+    def test_load_from_dump_with_ignored_keys(self):
+        rootobj = mock.Mock()
+        rootobj.etcd_index = 1237
+        rootobj.leaves = [leaf for leaf in self.leaves()]
+        w = writer.Etcd2Writer(
+            self.client,
+            "/test",
+            src_prefix="/my",
+            ignore_keys="/my/key/[1-9]",
+        )
+        w.load_from_dump(rootobj)
+        self.client.write.assert_has_calls(
+            [
+                mock.call("/test/key", None, dir=True, ttl=None),
+                mock.call("/test/key/0", "somevalue0", dir=False, ttl=None),
+                mock.call("/__replication/test", 1237),
+            ],
+        )
 
     @mock.patch("etcdmirror.log.log.info")
     def test_cleanup(self, logmocker):
