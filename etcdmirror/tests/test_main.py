@@ -35,7 +35,7 @@ class TestReplicationController(twisted.trial.unittest.TestCase):
         with mock.patch("etcdmirror.main.reactor") as mock_reactor:
             self.rc._sighandler(1, 10)
             self.assertFalse(self.rc.running)
-            mock_reactor.callLater.assert_called_with(0, mock_reactor.stop)
+            mock_reactor.callFromThread.assert_called_with(mock_reactor.stop)
 
     def test_fail(self):
         with mock.patch("etcdmirror.main.reactor") as mock_reactor:

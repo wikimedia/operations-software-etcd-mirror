@@ -105,7 +105,9 @@ def main():
     log.info("Starting replication at %s", idx)
     # This will start a chain of deferred calls
     controller.replicate(idx)
-    reactor.run()
+    # Do not install signal handlers during reactor startup, lest they supersede
+    # ours, which are necessary to shut down the watch loop in read_write.
+    reactor.run(installSignalHandlers=False)
     if controller.has_failures:
         sys.exit(1)
 
@@ -141,7 +143,9 @@ class ReplicationController(object):
 
     def _sighandler(self, signum, frame):
         self.running = False
-        reactor.callLater(0, reactor.stop)
+        # While this is the main thread, some care is needed to safely interact
+        # with reactor, which may have been interrupted at an arbitrary point.
+        reactor.callFromThread(reactor.stop)
 
     def _fail(self, reason):
         log.critical(reason)
