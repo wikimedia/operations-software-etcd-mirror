@@ -1,3 +1,11 @@
+etcd-mirror (0.0.11-1) bullseye-wikimedia; urgency=medium
+
+  * Improve support for full-keyspace mirroring
+  * Add support for an optional ignored-keys pattern (--src-ignore-keys-regex)
+  * Improve shutdown behavior (ensure eventual termination on handled signals)
+
+ -- swfrench <swfrench@wikimedia.org>  Fri, 05 Apr 2024 11:36:45 -0700
+
 etcd-mirror (0.0.10-1) bullseye-wikimedia; urgency=medium
 
   * Fix python3 compatibility
