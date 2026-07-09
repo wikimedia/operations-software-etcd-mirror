@@ -1,5 +1,6 @@
+from unittest import mock
+
 import etcd
-import mock
 import twisted.internet
 import twisted.test.proto_helpers
 import twisted.trial.unittest

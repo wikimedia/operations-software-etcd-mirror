@@ -10,8 +10,6 @@ Build-Depends: debhelper (>= 13),
 	python3-etcd,
 	python3-prometheus-client,
 	python3-twisted,
-	python3-mock,
-	python3-nose,
 	python3-parameterized,
 Standards-Version: 3.9.8
 X-Python-Version: >= 3.9

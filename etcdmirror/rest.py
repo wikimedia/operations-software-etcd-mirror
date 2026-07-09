@@ -1,9 +1,10 @@
 """
-  Rest interface for etcd2mirror
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Rest interface for etcd2mirror
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  A simple http server that exposes some data on the replication process
+A simple http server that exposes some data on the replication process
 """
+
 from prometheus_client.twisted import MetricsResource
 from twisted.web.resource import Resource
 

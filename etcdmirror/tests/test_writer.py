@@ -1,7 +1,7 @@
 import unittest
+from unittest import mock
 
 import etcd
-import mock
 from parameterized import parameterized
 
 from etcdmirror import writer

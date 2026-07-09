@@ -25,7 +25,7 @@ def read_config(url):
     else:
         netloc = parsed.netloc
         user = passwd = None
-    (h, p) = netloc.split(":")
+    h, p = netloc.split(":")
 
     return {
         "host": h,
