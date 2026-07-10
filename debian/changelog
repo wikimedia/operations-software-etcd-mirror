@@ -1,3 +1,9 @@
+etcd-mirror (0.0.12-1) bullseye-wikimedia; urgency=medium
+
+  * Consolidate and modernize test dependencies and entrypoint
+
+ -- Scott French <swfrench@wikimedia.org>  Fri, 10 Jul 2026 12:14:14 -0700
+
 etcd-mirror (0.0.11-1) bullseye-wikimedia; urgency=medium
 
   * Improve support for full-keyspace mirroring
